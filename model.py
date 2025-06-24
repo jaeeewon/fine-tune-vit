@@ -1,6 +1,6 @@
 from transformers import ViTForImageClassification
 
-def getModel(model_name_or_path, labels):
+def getModel(model_name_or_path, labels) -> ViTForImageClassification:
     return ViTForImageClassification.from_pretrained(
         model_name_or_path,
         num_labels=len(labels),

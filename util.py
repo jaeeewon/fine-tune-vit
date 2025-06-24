@@ -3,8 +3,12 @@ import torch
 import numpy as np
 from transformers import ViTImageProcessor
 
-def getProcessor(model_name_or_path):
-    return ViTImageProcessor.from_pretrained(model_name_or_path)
+processor = {}
+
+def getProcessor(model_name_or_path) -> ViTImageProcessor:
+    if model_name_or_path in processor: return processor[model_name_or_path]
+    processor[model_name_or_path] = ViTImageProcessor.from_pretrained(model_name_or_path)
+    return processor[model_name_or_path]
 
 def wrappedTransform(processor):
     def transform(example_batch):
