@@ -18,14 +18,13 @@ class Inference:
         self.model: ViTForImageClassification = getModel(self.model_path, labels)
 
     def __inferByPixel(self, pixel: Tensor):
-        """pixel_values를 가지고 추론합니다."""
+        """pixel_values를 가지고 infer한 후 각 label의 prob을 배열로 반환함"""
         result = self.model.forward(pixel)
         # result: ImageClassifierOutput(loss=None, logits=tensor([[-1.8621,  3.1887, -1.5510]], grad_fn=<AddmmBackward0>), hidden_states=None, attentions=None)
 
         logits: Tensor = result.logits[0]
 
-        prob = Inference.softmax_log_sum_exp_trick(logits)
-        return np.argmax(prob)
+        return Inference.softmax_log_sum_exp_trick(logits)
 
     def __getPixel(self, image: Image):
         """pixel_values를 포함하는 어떠한 것을 반환합니다."""
@@ -50,7 +49,8 @@ class Inference:
     def inferCustomData(self, files=["./dataset/test.png", "./dataset/test2.jpg"]):
         """해당 파일의 inference를 불러옵니다."""
         for path in files:
-            print(f"{path} infered as {self.labels[self.inferByPath(path)]}")
+            inferProbs = self.inferByPath(path)
+            print(f"{path} infered as {self.labels[np.argmax(inferProbs)]}")
 
     def evalDataset(self, setName="validation"):
         if setName not in Inference.sets:
@@ -59,7 +59,8 @@ class Inference:
             )
         corr = 0
         for vset in ds[setName]:
-            infer = self.__inferByPixel(self.__getPixel(vset["image"]))
+            inferProbs = self.__inferByPixel(self.__getPixel(vset["image"]))
+            infer = np.argmax(inferProbs)
             if infer == vset["labels"]:
                 corr += 1
             else:
