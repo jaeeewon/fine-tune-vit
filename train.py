@@ -3,6 +3,7 @@ from transformers import Trainer
 from config import training_args
 from util import collate_fn, compute_metrics
 
+
 def getTrainer(model, prepared_ds, processor):
     return Trainer(
         model=model,
@@ -14,6 +15,7 @@ def getTrainer(model, prepared_ds, processor):
         tokenizer=processor,
     )
 
+
 def train(model, prepared_ds, processor):
     trainer = getTrainer(model, prepared_ds, processor)
 
@@ -22,5 +24,5 @@ def train(model, prepared_ds, processor):
     trainer.log_metrics("train", train_results.metrics)
     trainer.save_metrics("train", train_results.metrics)
     trainer.save_state()
-    
+
     return trainer
