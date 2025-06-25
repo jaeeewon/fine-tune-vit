@@ -42,6 +42,11 @@ class Inference:
         px = self.__getPixelByImgPath(imgPath)
         return self.__inferByPixel(px)
 
+    def inferByImage(self, image: Image):
+        """입력한 이미지를 inference합니다."""
+        px = self.__getPixel(image)
+        return self.__inferByPixel(px)
+
     def inferCustomData(self, files=["./dataset/test.png", "./dataset/test2.jpg"]):
         """해당 파일의 inference를 불러옵니다."""
         for path in files:

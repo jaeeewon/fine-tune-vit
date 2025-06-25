@@ -44,3 +44,8 @@ ImportError: Using the `Trainer` with `PyTorch` requires `accelerate>=0.26.0`: P
 RuntimeError: TensorBoardCallback requires tensorboard to be installed. Either update your PyTorch version or install tensorboardX.
 ```
 로 인하여 `pip install tensorboardX`
+
+
+GUI를 위한 과정들
+-
+`pip install --upgrade gradio`

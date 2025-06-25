@@ -1,6 +1,8 @@
 from transformers import TrainingArguments
 
-model_name_or_path = "google/vit-base-patch16-224-in21k"
+model_name = "google/vit-base-patch16-224-in21k"
+model_path="./vit-base-beans"
+labels=["angular_leaf_spot", "bean_rust", "healthy"]
 
 training_args = TrainingArguments(
     output_dir="./vit-base-beans",

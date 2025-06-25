@@ -6,13 +6,13 @@ from transformers import ViTImageProcessor
 processor = {}
 
 
-def getProcessor(model_name_or_path) -> ViTImageProcessor:
-    if model_name_or_path in processor:
-        return processor[model_name_or_path]
-    processor[model_name_or_path] = ViTImageProcessor.from_pretrained(
-        model_name_or_path
+def getProcessor(model_name) -> ViTImageProcessor:
+    if model_name in processor:
+        return processor[model_name]
+    processor[model_name] = ViTImageProcessor.from_pretrained(
+        model_name
     )
-    return processor[model_name_or_path]
+    return processor[model_name]
 
 
 def wrappedTransform(processor):
