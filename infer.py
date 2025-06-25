@@ -1,89 +1,91 @@
 from dataset import ds
-from config import model_name_or_path
-from util import getProcessor, wrappedTransform
+from util import getProcessor
 from model import getModel
-from train import getTrainer
 
-from datasets import Dataset
 from PIL import Image
-from torch import Tensor, tensor
+from torch import Tensor
 import numpy as np
-
-TUNED_MODEL_PATH = "./vit-base-beans"
-labels = ["angular_leaf_spot", "bean_rust", "healthy"]
-sets = ["validation", "test", "train"]
+from transformers import ViTImageProcessor, ViTForImageClassification
 
 
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+class Inference:
+    sets: list[str] = ["validation", "test", "train"]
 
+    def __init__(self, model_path: str, labels: list[str]):
+        self.model_path: str = model_path
+        self.labels: list[str] = labels
+        self.processor: ViTImageProcessor = getProcessor(self.model_path)
+        self.model: ViTForImageClassification = getModel(self.model_path, labels)
 
-def evalDataset(setName="validation"):
-    if setName not in sets:
-        raise AssertionError("invalid setName " + setName)
-    processor = getProcessor(TUNED_MODEL_PATH)
-    corr = 0
-    for vset in ds[setName]:
-        infer = inferByPixel(
-            processor(vset["image"], return_tensors="pt")["pixel_values"]
-        )
-        if infer == vset["labels"]:
-            corr += 1
-        else:
-            print(
-                f"[{setName}] misclassificated {labels[vset['labels']]} as {labels[infer]}"
+    def __inferByPixel(self, pixel: Tensor):
+        """pixel_values를 가지고 추론합니다."""
+        result = self.model.forward(pixel)
+        # result: ImageClassifierOutput(loss=None, logits=tensor([[-1.8621,  3.1887, -1.5510]], grad_fn=<AddmmBackward0>), hidden_states=None, attentions=None)
+
+        logits: Tensor = result.logits[0]
+
+        prob = Inference.softmax_log_sum_exp_trick(logits)
+        return np.argmax(prob)
+
+    def __getPixel(self, image: Image):
+        """pixel_values를 포함하는 어떠한 것을 반환합니다."""
+        return self.processor(image, return_tensors="pt")["pixel_values"]
+        # transformers/models/vit/image_processing_vit.py l284, l285에서 이미지 픽셀 정보를 반환함을 확인함
+
+    def __getPixelByImgPath(self, imgPath):
+        """pixel_values를 포함하는 어떠한 것을 반환합니다."""
+        image = Image.open(imgPath).convert("RGB")
+        return self.__getPixel(image)
+
+    def inferByPath(self, imgPath):
+        """입력한 경로의 이미지를 inference합니다."""
+        px = self.__getPixelByImgPath(imgPath)
+        return self.__inferByPixel(px)
+
+    def inferCustomData(self, files=["./dataset/test.png", "./dataset/test2.jpg"]):
+        """해당 파일의 inference를 불러옵니다."""
+        for path in files:
+            print(f"{path} infered as {self.labels[self.inferByPath(path)]}")
+
+    def evalDataset(self, setName="validation"):
+        if setName not in Inference.sets:
+            raise AssertionError(
+                f"invalid setName {setName}: {Inference.sets} are the only available!"
             )
-    total = len(ds[setName])
-    print(f"accuracy of {setName} set: {corr / total * 100}%")
-    print(f"{corr} out of {total}")
+        corr = 0
+        for vset in ds[setName]:
+            infer = self.__inferByPixel(self.__getPixel(vset["image"]))
+            if infer == vset["labels"]:
+                corr += 1
+            else:
+                print(
+                    f"[{setName}] misclassificated {self.labels[vset['labels']]} as {self.labels[infer]}"
+                )
+        total = len(ds[setName])
+        print(f"accuracy of {setName} set: {corr / total * 100}%")
+        print(f"{corr} out of {total}")
 
+    def testInference(self):
+        self.inferCustomData()
+        for setName in Inference.sets:
+            print(f"{'=' * 10} {setName} set ({len(ds[setName])}개) {'=' * 10}")
+            self.evalDataset(setName)
 
-def inferByPixel(pixel):
-    """pixel_values를 가지고 추론합니다."""
-    model = getModel(TUNED_MODEL_PATH, labels)
-    result = model.forward(pixel)
-    # result: ImageClassifierOutput(loss=None, logits=tensor([[-1.8621,  3.1887, -1.5510]], grad_fn=<AddmmBackward0>), hidden_states=None, attentions=None)
-    logits = result.logits[0]
+    @staticmethod
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
 
-    inference = {"index": -1, "score": 0}
-    for i, logit in enumerate(logits):
-        score = logit.item()
-        # prob = sigmoid(score)
-        if inference["score"] < score:
-            inference["index"] = i
-            inference["score"] = score
-        # print(f'{i}th {labels[i]} {prob * 100}%', end=', ')
-    # print()
+    @staticmethod
+    def softmax(logits: Tensor):
+        expScore: np.float64 = [np.exp(logit.item()) for logit in logits]
+        expSum = np.sum(expScore)
+        probs: list[np.float64] = [(e / expSum) for e in expScore]
+        return probs
 
-    # print(f'inference result: {labels[inference['index']]}({sigmoid(inference['score']) * 100})')
-    return inference["index"]
-
-
-def getPixel(imgPath):
-    """pixel_values를 포함하는 어떠한 것을 반환합니다."""
-    processor = getProcessor(TUNED_MODEL_PATH)
-    image = Image.open(imgPath).convert("RGB")
-    ft = processor(image, return_tensors="pt")
-    return ft
-
-
-def inferByPath(imgPath):
-    """입력한 경로의 이미지를 inference합니다."""
-    ft = getPixel(imgPath)  # {pixel_values}
-    # print(ft)
-    return inferByPixel(ft["pixel_values"])
-
-
-def inferCustomData():
-    """해당 파일의 inference를 불러옵니다."""
-    files = ["./dataset/test.png", "./dataset/test2.jpg"]
-    for path in files:
-        print(f"{path} infered as {labels[inferByPath(path)]}")
-
-
-if __name__ == "__main__":
-    inferCustomData()
-
-    for setName in sets:
-        print(f"{'=' * 10} {setName} set ({len(ds[setName])}개) {'=' * 10}")
-        evalDataset(setName)
+    @staticmethod
+    def softmax_log_sum_exp_trick(logits: Tensor):
+        maxScore = logits.max().item()
+        lseScore: np.float64 = [np.exp(logit.item() - maxScore) for logit in logits]
+        lseSum = np.sum(lseScore)
+        probs: list[np.float64] = [l / lseSum for l in lseScore]
+        return probs
