@@ -1,10 +1,11 @@
 from infer import Inference
+from config import model_path, labels
 
 
 def main():
     infer = Inference(
-        model_path="./vit-base-beans",
-        labels=["angular_leaf_spot", "bean_rust", "healthy"],
+        model_path,
+        labels,
     )
 
     infer.testInference()
