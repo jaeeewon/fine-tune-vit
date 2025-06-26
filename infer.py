@@ -6,6 +6,7 @@ from PIL import Image
 from torch import Tensor
 import numpy as np
 from transformers import ViTImageProcessor, ViTForImageClassification
+import torch
 
 
 class Inference:
@@ -16,10 +17,12 @@ class Inference:
         self.labels: list[str] = labels
         self.processor: ViTImageProcessor = getProcessor(self.model_path)
         self.model: ViTForImageClassification = getModel(self.model_path, labels)
+        self.model.eval()
 
     def __inferByPixel(self, pixel: Tensor):
         """pixel_values를 가지고 infer한 후 각 label의 prob을 배열로 반환함"""
-        result = self.model.forward(pixel)
+        with torch.no_grad():
+            result = self.model.forward(pixel)
         # result: ImageClassifierOutput(loss=None, logits=tensor([[-1.8621,  3.1887, -1.5510]], grad_fn=<AddmmBackward0>), hidden_states=None, attentions=None)
 
         logits: Tensor = result.logits[0]
